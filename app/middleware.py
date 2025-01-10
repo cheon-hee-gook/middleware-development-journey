@@ -1,6 +1,7 @@
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 import logging
+import time
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
@@ -11,6 +12,8 @@ request_logger = logging.getLogger("RequestLogger")
 # 응답 로거
 response_logger = logging.getLogger("ResponseLogger")
 
+# 처리 시간 로거
+processing_logger = logging.getLogger("ProcessingLogger")
 
 class BasicRequestLoggingMiddleware(BaseHTTPMiddleware):
     """
@@ -56,4 +59,17 @@ class ResponseLoggingMiddleware(BaseHTTPMiddleware):
         response_logger.info(f"Response Status Code: {response.status_code}")
         response_logger.info(f"Response Body: {body.decode('utf-8')}")
 
+        return response
+
+
+class ProcessingTimeLoggingMiddleware(BaseHTTPMiddleware):
+    """
+    각 요청의 처리 시간을 측정하여 성능 분석에 활용합니다.
+    """
+    async def dispatch(self, request, call_next):
+        start_time = time.time()
+        response = await call_next(request)
+        end_time = time.time()
+        processing_time = end_time - start_time
+        processing_logger.info(f"Processing Time: {processing_time:.4f} seconds")
         return response
