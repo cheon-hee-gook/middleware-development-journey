@@ -23,6 +23,7 @@
 ### **구현된 미들웨어**
 1. **기본 요청 로깅**: 요청 URL, 메서드, 헤더 정보를 로깅.
 2. **요청 본문 로깅**: 요청 Body 데이터를 로깅.
+3. **응답 로깅**: 응답 상태 코드와 본문 데이터를 로깅.
 
 ### **테스트 방법**
 1. **기본 요청 로깅**:
@@ -45,11 +46,11 @@
 2. **요청 본문 로깅**:
    1. **Postman**
       - Method: `POST`
-      - URL: `http:127.0.0.1:8000`
+      - URL: `http:127.0.0.1:8000/data`
       - Body: `{"key: "value"}` JSON 형식
    2. **curl**
    ```bash
-   curl -X POST http://127.0.0.1:8000/ -H "Content-Type: application/json" -d '{"key": "value"}'
+   curl -X POST http://127.0.0.1:8000/data -H "Content-Type: application/json" -d '{"key": "value"}'
    ```
    3. **기대 결과**:
       - 응답: `{"message": "Hello, Middleware!"}`
@@ -59,3 +60,24 @@
          "key": "value" 
       }
       ```
+
+3. **응답 로깅**:
+   1. **Postman**
+      - Method: `GET`
+      - URL: `http:127.0.0.1:8000`
+   2. **curl**
+   ```bash
+   curl -X GET http://127.0.0.1:8000/
+   ```
+   3. **기대 결과**:
+      - 응답: `{"message": "Hello, Middleware!"}`
+      - 터미널 로그:
+      ```bash
+      2025-01-10 13:01:21,826 Response Status Code: 200
+      2025-01-10 13:01:21,826 Response Body: {"message":"Hello, Middleware!"}
+      ```
+
+## **학습 포인트**
+1. FastAPI 미들웨어 구현 원리.
+2. 스트리밍 응답 로깅 문제 해결.
+3. 요청 처리 시간 측정 및 로깅.

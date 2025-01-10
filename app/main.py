@@ -1,13 +1,18 @@
 from fastapi import FastAPI, HTTPException
-from app.middleware import BasicRequestLoggingMiddleware, RequestBodyLoggingMiddleware
+from starlette.responses import Response
+
+from app.middleware import BasicRequestLoggingMiddleware, RequestBodyLoggingMiddleware, ResponseLoggingMiddleware
 
 app = FastAPI()
 
 # 요청 로깅 미들웨어 등록
-app.add_middleware(BasicRequestLoggingMiddleware)
+# app.add_middleware(BasicRequestLoggingMiddleware)
 
 # 요청 본문 로깅 미들웨어 등록
-app.add_middleware(RequestBodyLoggingMiddleware)
+# app.add_middleware(RequestBodyLoggingMiddleware)
+
+# 응답 로깅 미들웨어 등록
+app.add_middleware(ResponseLoggingMiddleware)
 
 
 @app.get("/")
