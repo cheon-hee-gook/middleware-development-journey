@@ -78,7 +78,7 @@
       2025-01-10 13:01:21,826 Response Body: {"message":"Hello, Middleware!"}
       ```
 
-4**요청 처리 시간 로깅**:
+4. **요청 처리 시간 로깅**:
    1. **Postman**
       - Method: `GET`
       - URL: `http://127.0.0.1:8000/data`
