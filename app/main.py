@@ -5,6 +5,7 @@ from app.auth import create_jwt
 from app.database import users_db
 from app.middleware import BasicRequestLoggingMiddleware, RequestBodyLoggingMiddleware, ResponseLoggingMiddleware, \
     ProcessingTimeLoggingMiddleware, JWTAuthenticationMiddleware
+from app.schemas import LoginRequest
 
 app = FastAPI()
 
@@ -21,7 +22,7 @@ app = FastAPI()
 # app.add_middleware(ProcessingTimeLoggingMiddleware)
 
 # JWT 인증 미들웨어 등록
-app.add_middleware(JWTAuthenticationMiddleware)
+app.add_middleware(JWTAuthenticationMiddleware, excluded_paths=["/", "/data", "/login"])
 
 
 @app.get("/")
@@ -48,8 +49,12 @@ async def get_data():
     return email
 
 
+
 @app.post("/login")
-async def login(username: str, password: str):
+async def login(request: LoginRequest):
+    username = request.username
+    password = request.password
+
     user = users_db.get(username)
     if not user or user["password"] != password:
         raise HTTPException(status_code=401, detail="Invalid username or password")

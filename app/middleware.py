@@ -82,7 +82,16 @@ class JWTAuthenticationMiddleware(BaseHTTPMiddleware):
     요청 헤더에서 JWT를 추출하여 사용자 인증을 수행합니다.
     잘못된 입력(토큰 누락, 잘못된 토큰, 만료된 토큰)에 대해 적절한 응답을 반환합니다.
     """
+    def __init__(self, app, excluded_paths: list[str] = None):
+        super().__init__(app)
+        self.excluded_paths = excluded_paths or []
+
     async def dispatch(self, request, call_next):
+        # 제외 경로에 대해 미들웨어 동작을 생략
+        for path in self.excluded_paths:
+            if request.url.path.startswith(path):
+                return await call_next(request)
+
         token = request.headers.get("Authorization")
         if not token:
             return JSONResponse(content={"message": "Unauthorized: No token provided"}, status_code=401)
