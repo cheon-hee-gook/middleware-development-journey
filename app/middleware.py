@@ -1,7 +1,9 @@
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import Response
+from starlette.responses import Response, JSONResponse
 import logging
 import time
+
+from app.auth import decode_jwt
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
@@ -72,4 +74,25 @@ class ProcessingTimeLoggingMiddleware(BaseHTTPMiddleware):
         end_time = time.time()
         processing_time = end_time - start_time
         processing_logger.info(f"Processing Time: {processing_time:.4f} seconds")
+        return response
+
+
+class JWTAuthenticationMiddleware(BaseHTTPMiddleware):
+    """
+    요청 헤더에서 JWT를 추출하여 사용자 인증을 수행합니다.
+    잘못된 입력(토큰 누락, 잘못된 토큰, 만료된 토큰)에 대해 적절한 응답을 반환합니다.
+    """
+    async def dispatch(self, request, call_next):
+        token = request.headers.get("Authorization")
+        if not token:
+            return JSONResponse(content={"message": "Unauthorized: No token provided"}, status_code=401)
+
+        try:
+            token = token.replace("Bearer ", "")
+            payload = decode_jwt(token)
+            request.state.user = payload    # 사용자 정보 저장
+        except Exception as e:
+            return JSONResponse(content={"message": f"Unauthorized: {e}"}, status_code=401)
+
+        response = await call_next(request)
         return response

@@ -1,8 +1,10 @@
 from fastapi import FastAPI, HTTPException
 from starlette.responses import Response
 
+from app.auth import create_jwt
+from app.database import users_db
 from app.middleware import BasicRequestLoggingMiddleware, RequestBodyLoggingMiddleware, ResponseLoggingMiddleware, \
-    ProcessingTimeLoggingMiddleware
+    ProcessingTimeLoggingMiddleware, JWTAuthenticationMiddleware
 
 app = FastAPI()
 
@@ -16,7 +18,10 @@ app = FastAPI()
 # app.add_middleware(ResponseLoggingMiddleware)
 
 # 처리 시간 로깅 미들웨어 등록
-app.add_middleware(ProcessingTimeLoggingMiddleware)
+# app.add_middleware(ProcessingTimeLoggingMiddleware)
+
+# JWT 인증 미들웨어 등록
+app.add_middleware(JWTAuthenticationMiddleware)
 
 
 @app.get("/")
@@ -30,6 +35,7 @@ async def receive_data(payload: dict):
         raise HTTPException(status_code=400, detail="Missing 'key' in payload")
     return {"received_key": payload["key"]}
 
+
 @app.get("/data")
 async def get_data():
     from faker import Faker
@@ -40,3 +46,13 @@ async def get_data():
     email = { str(i+1): fake.unique.free_email() for i in range(10)}
     time.sleep(3)
     return email
+
+
+@app.post("/login")
+async def login(username: str, password: str):
+    user = users_db.get(username)
+    if not user or user["password"] != password:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+
+    token = create_jwt(username, user['role'])
+    return {"access_token": token, "token_type": "bearer"}
