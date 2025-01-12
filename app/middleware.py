@@ -1,3 +1,5 @@
+from typing import Optional, Union, List
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response, JSONResponse
 import logging
@@ -16,6 +18,7 @@ response_logger = logging.getLogger("ResponseLogger")
 
 # 처리 시간 로거
 processing_logger = logging.getLogger("ProcessingLogger")
+
 
 class BasicRequestLoggingMiddleware(BaseHTTPMiddleware):
     """
@@ -64,44 +67,24 @@ class ResponseLoggingMiddleware(BaseHTTPMiddleware):
         return response
 
 
-class ProcessingTimeLoggingMiddleware(BaseHTTPMiddleware):
-    """
-    각 요청의 처리 시간을 측정하여 성능 분석에 활용합니다.
-    """
-    async def dispatch(self, request, call_next):
-        start_time = time.time()
-        response = await call_next(request)
-        end_time = time.time()
-        processing_time = end_time - start_time
-        processing_logger.info(f"Processing Time: {processing_time:.4f} seconds")
-        return response
-
-
 class JWTAuthenticationMiddleware(BaseHTTPMiddleware):
-    """
-    요청 헤더에서 JWT를 추출하여 사용자 인증을 수행합니다.
-    잘못된 입력(토큰 누락, 잘못된 토큰, 만료된 토큰)에 대해 적절한 응답을 반환합니다.
-    """
-    def __init__(self, app, excluded_paths: list[str] = None):
+    def __init__(self, app, excluded_paths=None):
         super().__init__(app)
         self.excluded_paths = excluded_paths or []
 
     async def dispatch(self, request, call_next):
-        # 제외 경로에 대해 미들웨어 동작을 생략
-        for path in self.excluded_paths:
-            if request.url.path.startswith(path):
-                return await call_next(request)
+        if request.url.path in self.excluded_paths:
+            return await call_next(request)
 
         token = request.headers.get("Authorization")
-        if not token:
-            return JSONResponse(content={"message": "Unauthorized: No token provided"}, status_code=401)
+        if not token or not token.startswith("Bearer "):
+            return JSONResponse({"message": "Unauthorized: No token provided"}, status_code=401)
 
         try:
             token = token.replace("Bearer ", "")
             payload = decode_jwt(token)
-            request.state.user = payload    # 사용자 정보 저장
+            request.state.user = payload
         except Exception as e:
-            return JSONResponse(content={"message": f"Unauthorized: {e}"}, status_code=401)
+            return JSONResponse({"message": f"Unauthorized: {str(e)}"}, status_code=401)
 
-        response = await call_next(request)
-        return response
+        return await call_next(request)

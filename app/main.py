@@ -1,10 +1,10 @@
-from fastapi import FastAPI, HTTPException
-from starlette.responses import Response
+from fastapi import FastAPI, HTTPException, Request, Depends
+from starlette.responses import Response, JSONResponse
 
 from app.auth import create_jwt
 from app.database import users_db
-from app.middleware import BasicRequestLoggingMiddleware, RequestBodyLoggingMiddleware, ResponseLoggingMiddleware, \
-    ProcessingTimeLoggingMiddleware, JWTAuthenticationMiddleware
+# from app.middleware import (BasicRequestLoggingMiddleware, RequestBodyLoggingMiddleware, ResponseLoggingMiddleware, ProcessingTimeLoggingMiddleware)
+from app.middleware import JWTAuthenticationMiddleware
 from app.schemas import LoginRequest
 
 app = FastAPI()
@@ -22,8 +22,10 @@ app = FastAPI()
 # app.add_middleware(ProcessingTimeLoggingMiddleware)
 
 # JWT 인증 미들웨어 등록
-app.add_middleware(JWTAuthenticationMiddleware, excluded_paths=["/", "/data", "/login"])
+app.add_middleware(JWTAuthenticationMiddleware, excluded_paths=["/", "/token"])
 
+# 권한 관리 미들웨어 등록
+# app.add_middleware(RoleAuthorizationMiddleware, required_roles=["admin"], excluded_paths=["/", "/token"])
 
 @app.get("/")
 async def root():
@@ -49,8 +51,7 @@ async def get_data():
     return email
 
 
-
-@app.post("/login")
+@app.post("/token")
 async def login(request: LoginRequest):
     username = request.username
     password = request.password
@@ -60,4 +61,13 @@ async def login(request: LoginRequest):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     token = create_jwt(username, user['role'])
-    return {"access_token": token, "token_type": "bearer"}
+    return {"access_token": token, "token_type": "Bearer"}
+
+
+@app.get("/protected")
+def protected_resource(request: Request):
+    user = getattr(request.state, "user", None)
+    if not user:
+        return {"message": "Unauthorized access"}
+    return {"message": f"Hello, {user['sub']}!"}
+
