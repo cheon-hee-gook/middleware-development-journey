@@ -1,13 +1,14 @@
 from fastapi import FastAPI, HTTPException, Request, Depends
+from starlette.middleware import Middleware
 from starlette.responses import Response, JSONResponse
 
 from app.auth import create_jwt
 from app.database import users_db
 # from app.middleware import (BasicRequestLoggingMiddleware, RequestBodyLoggingMiddleware, ResponseLoggingMiddleware, ProcessingTimeLoggingMiddleware)
-from app.middleware import JWTAuthenticationMiddleware
+from app.middleware import JWTAuthenticationMiddlewareBaseHTTPMiddleware, JWTAuthenticationMiddlewareStarlette, RoleAuthorizationMiddlewareBaseHTTPMiddleware, RoleAuthorizationMiddlewareStarlette
 from app.schemas import LoginRequest
 
-app = FastAPI()
+app = FastAPI(lifespan=None)
 
 # 요청 로깅 미들웨어 등록
 # app.add_middleware(BasicRequestLoggingMiddleware)
@@ -21,11 +22,14 @@ app = FastAPI()
 # 처리 시간 로깅 미들웨어 등록
 # app.add_middleware(ProcessingTimeLoggingMiddleware)
 
-# JWT 인증 미들웨어 등록
-app.add_middleware(JWTAuthenticationMiddleware, excluded_paths=["/", "/token"])
-
 # 권한 관리 미들웨어 등록
-# app.add_middleware(RoleAuthorizationMiddleware, required_roles=["admin"], excluded_paths=["/", "/token"])
+app.add_middleware(RoleAuthorizationMiddlewareStarlette, required_roles=["admin"])
+# app.add_middleware(RoleAuthorizationMiddlewareBaseHTTPMiddleware, required_roles=["admin"])
+
+# JWT 인증 미들웨어 등록
+app.add_middleware(JWTAuthenticationMiddlewareStarlette, excluded_paths=["/", "/token"])
+# app.add_middleware(JWTAuthenticationMiddlewareBaseHTTPMiddleware, excluded_paths=["/", "/token"])
+
 
 @app.get("/")
 async def root():
@@ -71,3 +75,10 @@ def protected_resource(request: Request):
         return {"message": "Unauthorized access"}
     return {"message": f"Hello, {user['sub']}!"}
 
+
+@app.get("/admin")
+async def admin_resource(request: Request):
+    user = getattr(request.state, "user", None)
+    if not user:
+        return {"message": "Unauthorized access"}
+    return {"message": f"Hello, {user['sub']}!"}
