@@ -252,3 +252,57 @@
      를 추가하여 이 문제를 해결
 4. Depends 사용: 경로별로 인증과 권한 검사가 다르게 적용될 때 적합
 5. 미들웨어 사용: 모든 요청에 동일한 처리가 필요할 때 적합 (예: 로깅, 공통 인증)
+
+## **요청 데이터 암호화 및 복호화 미들웨어**
+
+### **구현된 미들웨어**
+1. **요청 데이터 암호화 미들웨어**:
+    - 클라이언트에서 요청한 데이터를 암호화하여 서버에 전송
+    - 서버는 암호화된 데이터를 그대로 응답
+
+2. **요청 데이터 복호화 미들웨어**:
+    - 클라이언트에서 암호화된 데이터를 전송하면 서버는 이를 복호화
+    - 복호화된 데이터를 JSON으로 변환하여 클라이언트에 반환
+
+### **테스트 방법**
+1. **요청 데이터를 암호화하여 반환**:
+   - **Postman**
+      - Method: `POST`
+      - URL: `http://127.0.0.1:8000/secure-data`
+      - Body: ` { "key": "value" }` JSON 형식
+   - **기대 결과**:
+        - 응답
+        - Body:
+        ```
+        gAAAAABniJ-fHHVjhfvDr8mEo8TlZZjw8kj_12VIY6VtnxQWj9jChCAizPiGXsqTAUWrP0_faYf1AALXEHyFvU69pU-rlqpUQq1Hv2UhxxoHGLra-uT1aHw=
+        ```
+        - Headers:
+        ```
+        application/octet-stream
+        ```
+
+2. **암호화된 요청 데이터를 복호화하여 반환**:
+   - **Postman**
+      - Method: `POST`
+      - URL: `http://127.0.0.1:8000/secure-data`
+      - Headers: `Content-Type: application/octet-stream`
+      - Body: ` gAAAAABniJ-fHHVjhfvDr8mEo8TlZZjw8kj_12VIY6VtnxQWj9jChCAizPiGXsqTAUWrP0_faYf1AALXEHyFvU69pU-rlqpUQq1Hv2UhxxoHGLra-uT1aHw= ` raw TEXT 형식
+   - **기대 결과**:
+        - 응답
+        - Body:
+        ```
+        {
+          "received": {
+            "key": "value"
+            }
+        }
+        ```
+        - Headers:
+        ```
+        application/json
+        ```
+
+### **학습 포인트**
+1. 암호화와 복호화의 분리: 요청 데이터를 암호화/복호화하는 미들웨어를 별도로 분리하여 관리
+2. FastAPI의 요청 데이터 처리: request.body()를 사용하여 요청 데이터를 수동으로 처리
+3. Postman을 활용한 테스트: Content-Type 설정을 통해 암호화된 데이터를 전송하고 복호화된 데이터를 검증
