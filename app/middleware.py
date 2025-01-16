@@ -1,11 +1,21 @@
-from typing import Optional, Union, List
-
+from cryptography.fernet import Fernet
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import Response, JSONResponse
+from starlette.responses import Response, JSONResponse, StreamingResponse
 import logging
-import time
+from dotenv import load_dotenv
+import os
 
 from app.auth import decode_jwt
+
+# 환경 변수 로드
+load_dotenv()
+
+# 암호화 키 로드
+ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
+if not ENCRYPTION_KEY:
+    raise ValueError("Encryption key not found in .env file")
+
+cipher_suite = Fernet(ENCRYPTION_KEY)
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
@@ -179,3 +189,45 @@ class RoleAuthorizationMiddlewareStarlette:
 
         # 다음 미들웨어로 이동
         await self.app(scope, receive, send)
+
+
+class RequestEncryptionMiddleware(BaseHTTPMiddleware):
+    """요청 데이터를 암호화하여 반환하는 미들웨어"""
+    async def dispatch(self, request, call_next):
+        # 요청 처리
+        body = await request.body()
+
+        try:
+            # 요청 데이터를 암호화
+            if body:
+                encrypted_body = cipher_suite.encrypt(body)
+                return Response(
+                    content=encrypted_body,
+                    status_code=200,
+                    media_type="application/octet-stream",
+                )
+        except Exception as e:
+            print(f"Error encrypting request: {e}")  # 디버깅
+            return JSONResponse({"message": "Error encrypting request"}, status_code=500)
+
+        return await call_next(request)
+
+
+class RequestDecryptionMiddleware(BaseHTTPMiddleware):
+    """요청 데이터를 복호화하여 반환하는 미들웨어"""
+    async def dispatch(self, request, call_next):
+        try:
+            # 요청 데이터 복호화
+            body = await request.body()
+            if body:
+                decrypted_body = cipher_suite.decrypt(body)
+                return Response(
+                    content=decrypted_body,
+                    status_code=200,
+                    media_type="application/json",
+                )
+        except Exception as e:
+            print(f"Error decrypting request: {e}")  # 디버깅
+            return JSONResponse({"message": "Error decrypting request"}, status_code=400)
+
+        return await call_next(request)
