@@ -1,6 +1,7 @@
 from cryptography.fernet import Fernet
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response, JSONResponse, StreamingResponse
+from pydantic import BaseModel, ValidationError
 import logging
 from dotenv import load_dotenv
 import os
@@ -231,3 +232,31 @@ class RequestDecryptionMiddleware(BaseHTTPMiddleware):
             return JSONResponse({"message": "Error decrypting request"}, status_code=400)
 
         return await call_next(request)
+
+
+class RequestValidationMiddleware(BaseHTTPMiddleware):
+    """요청 데이터를 검증하는 미들웨어"""
+
+    def __init__(self, app, model):
+        super().__init__(app)
+        self.model = model
+
+    async def dispatch(self, request, call_next):
+        if request.method in ["POST", "PUT", "PATCH"]:
+            try:
+                body = await request.json()
+                self.model.parse_obj(body)  # Pydantic 모델로 데이터 검증
+            except ValidationError as e:
+                return JSONResponse(
+                    {"message": "Invalid request data", "errors": e.errors()},
+                    status_code=400,
+                )
+            except Exception as e:
+                return JSONResponse(
+                    {"message": f"Error processing request: {str(e)}"},
+                    status_code=400
+                )
+
+        # 요청이 유효하면 다음 처리로 이동
+        response = await call_next(request)
+        return response

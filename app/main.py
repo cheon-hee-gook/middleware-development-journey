@@ -7,8 +7,8 @@ from app.auth import create_jwt
 from app.database import users_db
 # from app.middleware import (BasicRequestLoggingMiddleware, RequestBodyLoggingMiddleware, ResponseLoggingMiddleware, ProcessingTimeLoggingMiddleware)
 # from app.middleware import JWTAuthenticationMiddlewareBaseHTTPMiddleware, JWTAuthenticationMiddlewareStarlette, RoleAuthorizationMiddlewareBaseHTTPMiddleware, RoleAuthorizationMiddlewareStarlette
-from app.middleware import RequestEncryptionMiddleware, RequestDecryptionMiddleware
-from app.schemas import LoginRequest
+from app.middleware import RequestEncryptionMiddleware, RequestDecryptionMiddleware, RequestValidationMiddleware
+from app.schemas import LoginRequest, ExampleRequestModel
 
 app = FastAPI(lifespan=None)
 
@@ -36,7 +36,11 @@ app = FastAPI(lifespan=None)
 # app.add_middleware(RequestEncryptionMiddleware)
 
 # 복호화 미들웨어 등록
-app.add_middleware(RequestDecryptionMiddleware)
+# app.add_middleware(RequestDecryptionMiddleware)
+
+# 요청 검증 미들웨어 등록
+app.add_middleware(RequestValidationMiddleware, model=ExampleRequestModel)
+
 
 @app.get("/")
 async def root():
@@ -111,3 +115,9 @@ async def secure_data(request: Request):
         return {"message": "Invalid JSON format in the request body"}
     except Exception as e:
         return {"message": f"Error processing request: {e}"}
+
+
+@app.post("/validate-data")
+async def validate_data():
+    """요청 데이터 검증 후 처리"""
+    return {"message": "Valid data received"}
