@@ -306,3 +306,113 @@
 1. 암호화와 복호화의 분리: 요청 데이터를 암호화/복호화하는 미들웨어를 별도로 분리하여 관리
 2. FastAPI의 요청 데이터 처리: request.body()를 사용하여 요청 데이터를 수동으로 처리
 3. Postman을 활용한 테스트: Content-Type 설정을 통해 암호화된 데이터를 전송하고 복호화된 데이터를 검증
+
+## **요청 데이터 검증 미들웨어**
+
+### **구현된 미들웨어**
+1. **요청 데이터 검증**:
+    - 요청 본문 데이터를 Pydantic 모델과 비교하여 검증
+    - 잘못된 데이터는 처리하지 않고, 상세한 오류 메시지와 함께 응답
+    - POST, PUT, PATCH 요청에 대해서만 검증 수행
+    - 유효성 검증 로직:
+      - 필수 필드 확인
+      - 데이터 유형 체크
+      - 값의 범위 및 포맷 검증
+
+### **테스트 방법**
+1. **올바른 요청 데이터 전송**:
+   - **Postman**
+      - Method: `POST`
+      - URL: `http://127.0.0.1:8000/validate-data`
+      - Headers: `Content-Type`:`application/json`
+      - Body: 
+        ```
+        {
+           "name": "Hui Guk",
+           "age": 30,
+           "email": "test@example.com"
+        }
+        ```
+   - **기대 결과**:
+        - 응답
+        - Body:
+          ```
+          {
+             "message": "Valid data received"
+          }
+          ```
+2. **잘못된 데이터 전송**:
+   - **Postman**
+      - Method: `POST`
+      - URL: `http://127.0.0.1:8000/validate-data`
+      - Headers: `Content-Type`:`application/json`
+      - Body: 
+        ```
+        {
+           "name": "Hui Guk"
+        }
+        ```
+   - **기대 결과**:
+        - 응답
+        - Body:
+          ```
+          {
+             "message": "Invalid request data",
+             "errors": [
+               {
+                 "loc": ["age"],
+                 "msg": "field required",
+                 "type": "value_error.missing"
+               },
+               {
+                 "loc": ["email"],
+                 "msg": "field required",
+                 "type": "value_error.missing"
+               }
+              ]
+          }
+          ```
+
+3. **유효하지 않은 값**:
+   - **Postman**
+      - Method: `POST`
+      - URL: `http://127.0.0.1:8000/validate-data`
+      - Headers: `Content-Type`:`application/json`
+      - Body: 
+        ```
+        {
+           "name": "Hui Guk",
+           "age": -5,
+           "email": "not-an-email"
+        }
+        ```
+   - **기대 결과**:
+        - 응답
+        - Body:
+          ```
+          {
+             "message": "Invalid request data",
+             "errors": [
+               {
+                  "loc": ["age"],
+                  "msg": "ensure this value is greater than 0",
+                  "type": "value_error.number.not_gt",
+                  "ctx": {"limit_value": 0}
+               },
+               {
+                  "loc": ["email"],
+                  "msg": "value is not a valid email address",
+                  "type": "value_error.email"
+               }
+              ]
+          }
+          ```
+
+### **학습 포인트**
+1. Pydantic의 강력한 유효성 검증 기능:
+   - 데이터 유형, 필수 필드, 값의 범위 등을 유연하게 검증 가능
+   - 상세한 오류 메시지 제공
+2. 미들웨어와 유효성 검증의 결합:
+   - 데이터를 사전에 검증하여 불필요한 리소스 낭비를 방지
+3. Postman을 활용한 테스트: 
+   - 다양한 테스트 시나리오를 통해 미들웨어의 동작 검증
