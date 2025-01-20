@@ -5,6 +5,7 @@ from pydantic import BaseModel, ValidationError
 import logging
 from dotenv import load_dotenv
 import os
+from redis import Redis
 
 from app.auth import decode_jwt
 
@@ -258,5 +259,40 @@ class RequestValidationMiddleware(BaseHTTPMiddleware):
                 )
 
         # 요청이 유효하면 다음 처리로 이동
+        response = await call_next(request)
+        return response
+
+
+class RateLimitingMiddleware(BaseHTTPMiddleware):
+    """API 요청 제한 미들웨어"""
+
+    def __init__(self, app, redis_host="localhost", redis_port=6379, rate_limit=5, window_size=60):
+        super().__init__(app)
+        self.redis = Redis(host=redis_host, port=redis_port, decode_responses=True)
+        self.rate_limit = rate_limit  # 허용 요청 횟수
+        self.window_size = window_size  # 시간 창 (초)
+
+    async def dispatch(self, request, call_next):
+        # 클라이언트 IP 가져오기
+        client_ip = request.client.host
+        redis_key = f"rate_limit:{client_ip}"  # Redis 키 생성
+
+        # 요청 횟수 가져오기
+        current_count = self.redis.get(redis_key)
+        if current_count is None:
+            # 키가 없으면 초기화
+            self.redis.set(redis_key, 1, ex=self.window_size)
+        else:
+            current_count = int(current_count)
+            if current_count >= self.rate_limit:
+                # 요청 제한 초과
+                return JSONResponse(
+                    {"message": "Too Many Requests. Please try again later."},
+                    status_code=429
+                )
+            # 요청 횟수 증가
+            self.redis.incr(redis_key)
+
+        # 다음 처리
         response = await call_next(request)
         return response
